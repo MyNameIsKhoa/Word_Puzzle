@@ -233,7 +233,7 @@ export default function App() {
       setDebuffCaster(data.casterName);
       setDebuffToast({ spell: data.type, caster: data.casterName });
       setTimeout(() => setActiveDebuff(null), data.duration * 1000);
-      setTimeout(() => setDebuffToast(null), 3000);
+      setTimeout(() => setDebuffToast(null), 5000);
     });
 
     return () => { socket.disconnect(); };
@@ -410,7 +410,7 @@ export default function App() {
         }
         setTargetModal(null);
       } else {
-        setResultPopup({ type: 'error', msg: res.error || 'Lỗi ném phép!' });
+        setResultPopup({ type: 'error', msg: res.error || 'Lỗi dùng vật phẩm!' });
       }
     });
   };
@@ -434,16 +434,16 @@ export default function App() {
             initial={{ opacity: 0, x: 50, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 50, scale: 0.9 }}
-            className="fixed top-8 right-8 z-[400] bg-red-600 text-white px-6 py-4 rounded-2xl shadow-2xl border-4 border-red-400 flex items-center gap-4"
+            className="fixed top-8 right-8 z-[400] bg-orange-600 text-white px-6 py-4 rounded-2xl shadow-2xl border-4 border-orange-400 flex items-center gap-4"
           >
-            <AlertCircle size={32} className="animate-bounce" />
+            <AlertCircle size={32} className="animate-bounce text-yellow-300" />
             <div>
-              <p className="font-black text-lg">CẢNH BÁO DEBUFF!</p>
-              <p className="font-medium text-red-100">Bạn đã dính phép <strong className="uppercase">{
+              <p className="font-black text-lg">🚨 BÁO ĐỘNG!</p>
+              <p className="font-medium text-orange-100">🚨 <strong>{debuffToast.caster}</strong> vừa 'úp sọt' bạn bằng <strong className="uppercase text-yellow-300">{
                 debuffToast.spell === 'banana' ? 'Vỏ Chuối' :
                   debuffToast.spell === 'powerout' ? 'Cúp Điện' :
-                    debuffToast.spell === 'earthquake' ? 'Động Đất' : 'Phép Thuật'
-              }</strong> từ <strong>{debuffToast.caster}</strong>!</p>
+                    debuffToast.spell === 'earthquake' ? 'Động Đất' : 'Vật Phẩm'
+              }</strong>!</p>
             </div>
           </motion.div>
         )}
@@ -484,7 +484,7 @@ export default function App() {
                     {p.immuneUntil > Date.now() ? (
                       <span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-black flex items-center gap-1"><Shield size={14} /> Có Khiên</span>
                     ) : (
-                      <span className="text-sm font-bold bg-purple-100 text-purple-700 px-4 py-1.5 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition shadow-sm">Ném Phép</span>
+                      <span className="text-sm font-bold bg-purple-100 text-purple-700 px-4 py-1.5 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition shadow-sm">Dùng vật phẩm</span>
                     )}
                   </button>
                 ))}
@@ -583,8 +583,8 @@ export default function App() {
                   </ul>
                 </div>
                 <div>
-                  <h4 className="text-xl font-bold text-slate-800 mb-2 border-b-2 border-emerald-500 inline-block">2. Phép thuật (Buff/Debuff)</h4>
-                  <p className="text-slate-600 mb-3 font-medium">Bấm vào biểu tượng <b>Phép thuật</b> góc phải dưới màn hình. Trả lời đúng 1 câu hỏi phụ để nhận ngẫu nhiên một trong các vật phẩm sau:</p>
+                  <h4 className="text-xl font-bold text-slate-800 mb-2 border-b-2 border-emerald-500 inline-block">2. Vật phẩm cản trở</h4>
+                  <p className="text-slate-600 mb-3 font-medium">Bấm vào nút <b>Nhận vật phẩm</b> ở góc phải dưới màn hình. Trả lời đúng 1 câu hỏi phụ để nhận ngẫu nhiên một trong các vật phẩm sau:</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                       <div className="flex items-center gap-2 mb-2"><Sparkles className="text-yellow-500" /> <span className="font-bold">Thanh Tẩy</span></div>
@@ -603,7 +603,7 @@ export default function App() {
                       <p className="text-sm text-slate-600">Xáo trộn và rung lắc liên tục toàn bộ chữ cái của đối thủ trong 5 giây.</p>
                     </div>
                   </div>
-                  <p className="mt-3 text-sm italic text-slate-500 bg-blue-50 p-3 rounded-lg">Lưu ý: Khi ném Debuff lên một đối thủ, họ sẽ nhận được <b>Khiên bảo vệ</b> trong thời gian 15 giây để chống bị ném liên tục.</p>
+                  <p className="mt-3 text-sm italic text-slate-500 bg-blue-50 p-3 rounded-lg">Lưu ý: Khi dùng <b>vật phẩm cản trở</b> lên một đối thủ, họ sẽ nhận được <b>Khiên bảo vệ</b> trong thời gian 15 giây để chống bị tấn công liên tục.</p>
                 </div>
               </div>
             </motion.div>
@@ -676,12 +676,17 @@ export default function App() {
                 <h2 className="text-3xl font-black text-emerald-400">ĐẤU TRƯỜNG THƯƠNG TRƯỜNG</h2>
                 <p className="text-slate-400 font-medium mt-2">Bảng Xếp Hạng Tổng Hợp</p>
               </div>
-              {gameState === 'LOBBY' && (
-                <button onClick={handleHostStart} disabled={players.length === 0} className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-600 disabled:text-slate-400 text-slate-900 font-black py-4 px-10 rounded-2xl shadow-xl transition-all text-xl cursor-pointer">BẮT ĐẦU CHƠI</button>
-              )}
-              {gameState !== 'LOBBY' && (
-                <button onClick={handleHostReset} className="bg-red-500 hover:bg-red-400 text-white font-bold py-3 px-6 rounded-xl transition cursor-pointer">Làm lại</button>
-              )}
+              <div className="flex items-center gap-4">
+                <button onClick={() => window.location.reload()} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl transition cursor-pointer">
+                  Về Trang Chủ
+                </button>
+                {gameState === 'LOBBY' && (
+                  <button onClick={handleHostStart} disabled={players.length === 0} className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-600 disabled:text-slate-400 text-slate-900 font-black py-4 px-10 rounded-2xl shadow-xl transition-all text-xl cursor-pointer">BẮT ĐẦU CHƠI</button>
+                )}
+                {gameState !== 'LOBBY' && (
+                  <button onClick={handleHostReset} className="bg-red-500 hover:bg-red-400 text-white font-bold py-3 px-6 rounded-xl transition cursor-pointer">Làm lại</button>
+                )}
+              </div>
             </div>
             <div className="flex-1 p-8 bg-slate-50">
               {players.length === 0 ? (
@@ -717,10 +722,13 @@ export default function App() {
         )}
 
         {role === 'PLAYER' && gameState === 'LOBBY' && (
-          <div className="m-auto bg-white border-2 border-slate-200 rounded-3xl p-16 text-center shadow-2xl max-w-2xl w-full">
+          <div className="m-auto bg-white border-2 border-slate-200 rounded-3xl p-16 text-center shadow-2xl max-w-2xl w-full flex flex-col items-center">
             <Users size={80} className="text-emerald-500 mx-auto mb-8 animate-pulse" />
             <h2 className="text-4xl font-black text-slate-800">XIN CHÀO: <span className="text-emerald-600">{teamName.toUpperCase()}</span></h2>
             <p className="text-xl text-slate-500 font-medium mt-4">Vui lòng chờ Host bắt đầu trận đấu...</p>
+            <button onClick={() => window.location.reload()} className="mt-8 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 px-8 rounded-xl transition cursor-pointer border border-slate-300">
+              Quay lại màn hình chính
+            </button>
           </div>
         )}
 
@@ -901,7 +909,7 @@ export default function App() {
                 {!magicActive ? (
                   <button onClick={handleRequestMagic} disabled={magicCooldown > 0} className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-3 px-2 rounded-xl shadow transition text-xs leading-relaxed cursor-pointer flex flex-col items-center justify-center gap-1 text-center">
                     <Sparkles size={16} className="shrink-0" />
-                    {magicCooldown > 0 ? `HỒI CHIÊU (${magicCooldown}s)` : 'TRẢ LỜI CÂU HỎI NHẬN VẬT PHẨM'}
+                    {magicCooldown > 0 ? `Đang chuẩn bị câu hỏi... (${magicCooldown}s)` : 'TRẢ LỜI CÂU HỎI NHẬN VẬT PHẨM'}
                   </button>
                 ) : (
                   <div className="space-y-3">
