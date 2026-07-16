@@ -1,0 +1,69 @@
+TÀI LIỆU DỰ ÁN (PROJECT DOCUMENT)
+GAME: GIẢI MÃ THƯƠNG TRƯỜNG (MARKET DECODED)
+MỤC TIÊU DỰ ÁN
+Mục đích: Sản phẩm sáng tạo phục vụ bài thuyết trình môn Kinh tế Chính trị Mác - Lênin (Chủ đề 5.3).
+Nền tảng: Web Browser (Khuyến nghị sử dụng Laptop/Macbook với chuột máy tính để đảm bảo tương tác mượt mà).
+Quy mô: 1 Màn hình Host (Máy chiếu) + 8 Đội chơi = Tối đa 10 kết nối đồng thời.
+PHẦN I: GAME DESIGN DOCUMENT (THIẾT KẾ TRÒ CHƠI)
+Luồng Vận Hành Chung (Flow Trò Chơi)
+Phòng chờ (Lobby): Host (Người thuyết trình) trình chiếu giao diện phòng chờ trên màn hình lớn. Màn hình này hiển thị Mã Phòng (Room ID) và Danh sách các đội đã truy cập thành công.
+Khởi động: Trò chơi không bắt đầu cho đến khi Host chủ động bấm nút "Bắt Đầu Chơi" trên máy chủ. Khi được kích hoạt, thiết bị của tất cả các đội sẽ đồng loạt chuyển vào Vòng 1.
+Tiến trình Bất đồng bộ (Asynchronous Gameplay):
+Trò chơi diễn ra theo nhịp độ độc lập của từng đội (Host không điều khiển việc chuyển sang câu hỏi tiếp theo).
+Mỗi khi một đội hoàn thành bài làm ở 1 câu, màn hình thiết bị của đội đó sẽ tự động chuyển sang chế độ Chờ (Countdown 5 giây) trước khi nạp câu hỏi tiếp theo.
+Bảo mật: Không hiển thị công khai đáp án đúng/sai lên màn hình máy chiếu tổng để tránh hiện tượng sao chép. Kết quả của vòng chơi chỉ hiển thị trực tiếp và duy nhất tại khu vực làm bài của đội đó.
+Định Dạng Câu Hỏi & Cấu Trúc Vòng Chơi
+Loại nội dung: Nội dung câu hỏi linh hoạt giữa Text (Đoạn mô tả tình huống) hoặc Hình ảnh (Một bức ảnh thực tiễn kèm theo một câu hỏi chữ ngắn để các nhóm phân tích).
+Vòng 1 đến 7 (Vòng Thường):
+Giao diện: Phần trên hiển thị Câu hỏi/Hình ảnh, phần giữa là các ô trống đại diện cho từ khóa, phần dưới là bàn phím các chữ cái lộn xộn (không dấu).
+Thời gian: 45 giây/vòng.
+Cơ chế Tính điểm (Time-decay Scoring):
+Trả lời siêu tốc trong dưới 15 giây: Đội nhận điểm tối đa 100 điểm.
+Trả lời trong khoảng từ 15 giây đến 45 giây: Số điểm giảm dần tuyến tính từ 100 điểm xuống còn 70 điểm.
+Hết 45 giây (Timeout): 0 điểm.
+Vòng 8 (Vòng Master - Lật Kèo):
+Nhiệm vụ: Màn hình của đội hiển thị lại 7 từ khóa đã giải đúng từ các vòng trước. Nếu đội giải sai hoặc bỏ trống ở vòng nào, từ khóa đó sẽ bị che đen. Dựa vào các mảnh ghép này, người chơi phải suy luận ra 1 Từ Khóa Tổng liên kết toàn bộ chương học.
+Cơ chế Tính điểm: Cố định 500 điểm cho đội giải chính xác (Điểm giữ nguyên, không bị giảm trừ theo thời gian).
+Hệ Thống Tương Tác (Buff / Debuff System)
+Trên màn hình của mỗi đội luôn hiển thị một nút chức năng "Nhận Phép Thuật".
+Cách lấy Buff: Nhấn nút và trả lời 1 câu hỏi trắc nghiệm lý thuyết ngắn trong vòng 10 giây.
+Cooldown (Thời gian hồi): Dù trả lời đúng hay sai, nút chức năng sẽ bị khóa (Cooldown) trong 20 giây.
+Phần thưởng: Trả lời đúng sẽ nhận ngẫu nhiên 1 trong 4 quyền năng:
+Thanh Tẩy (Buff tự thân): Tự động xóa bỏ toàn bộ các chữ cái rác gây nhiễu trong khay chọn chữ của đội mình.
+Vỏ Chuối (Debuff): Chỉ định 1 đội đối thủ. Ném một vỏ chuối che khuất góc 1/4 màn hình tại vị trí con trỏ chuột của họ trong 5 giây.
+Cúp Điện (Debuff): Chỉ định 1 đội đối thủ. Làm tối đen 95% màn hình thiết bị của họ, chỉ chừa lại một vùng sáng nhỏ hắt ra từ vị trí chuột trong 5 giây.
+Động Đất (Debuff): Chỉ định 1 đội đối thủ. Xáo trộn toàn bộ vị trí các chữ cái trên bàn phím ảo của đội đó để làm mất nhịp thao tác.
+Cơ chế Miễn nhiễm (Immunity): Mỗi đội chỉ có thể bị trúng tối đa 1 Debuff trên 1 câu hỏi. Khi đã dính chiêu, đội đó sẽ kích hoạt trạng thái "Khiên", miễn nhiễm với các đòn tấn công khác cho đến khi qua màn tiếp theo.
+PHẦN II: TECHNICAL SPECIFICATION (TÀI LIỆU KỸ THUẬT)
+Công Nghệ Áp Dụng (Tech Stack)
+Frontend (Client): ReactJS (Khởi tạo bằng Vite), định dạng UI qua Tailwind CSS hoặc React-Bootstrap, kết nối mạng bằng thư viện socket.io-client.
+Backend (Server): Node.js, Express.js, kết nối realtime bằng socket.io.
+Database: Lưu trữ toàn bộ trên In-memory Storage (RAM của máy chủ Node.js). Dữ liệu câu hỏi được đọc từ file tĩnh JSON.
+Kiến Trúc & Quản Lý Trạng Thái (State Management)
+Trọng tài Server: Backend làm nhiệm vụ tính điểm tuyệt đối. Thay vì để máy khách gửi số điểm lên (dễ bị hack/inspect code), máy khách chỉ được gửi string đáp án. Server tự động đối chiếu thời gian và công thức để tính điểm, sau đó cộng thẳng vào tài khoản của người chơi.
+Cấu trúc dữ liệu trong RAM (Node.js):
+JSON
+{
+"room_1234": {
+"status": "LOBBY",
+"players": {
+"socket_id_1": {
+"teamName": "Nhóm 1",
+"score": 0,
+"currentQuestionIndex": 1,
+"isImmuneThisRound": false
+}
+}
+}
+}
+3. Xử Lý Chức Năng Bất Đồng Bộ (Async Gameplay Flow)
+Hệ thống không sử dụng bộ đếm thời gian chung cho cả phòng. Thay vào đó, mỗi Player trên Server sẽ sở hữu một Timer độc lập:
+Player tải xong câu hỏi hiện tại -> Gửi tín hiệu báo Server bắt đầu đếm giới hạn 45 giây.
+Player hoàn thành thao tác/submit đáp án -> Server chấm điểm, cộng điểm và trả về tín hiệu WAIT_5S.
+Client đếm ngược 5 giây ở màn hình chờ -> Sau 5 giây, tải câu hỏi tiếp theo và báo lại cho Server.
+Màn hình Host (Máy chiếu) chỉ đóng vai trò View (Hiển thị): Liên tục nhận event cập nhật Leaderboard từ Server và sắp xếp lại biểu đồ thứ hạng theo Real-time mà không tác động vào luồng đi của từng cá nhân.
+Phương Án Triển Khai (Deployment)
+Frontend: Triển khai tĩnh qua Vercel hoặc Netlify.
+Backend: Triển khai qua nền tảng đám mây Render.com.
+Tool bảo trì vòng đời Server: Render thường tự vô hiệu hóa (sleep) các server miễn phí sau 15 phút không có tương tác. Cần sử dụng website cron-job.org cấu hình ping một request rỗng (GET) vào endpoint Backend mỗi 10 phút. Thao tác này giúp server giữ vững trạng thái hoạt động 24/24, đảm bảo RAM không bị reset trong quá trình thuyết trình.
+Để hỗ trợ cho quá trình code thực tế, video hướng dẫn xây dựng ứng dụng giải đố nhiều người chơi với React, Node.js và Socket.io sẽ giúp bạn hình dung rất rõ cách tổ chức dữ liệu phòng chờ và truyền tải điểm số liên tục.
