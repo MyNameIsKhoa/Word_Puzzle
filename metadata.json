@@ -1,6 +1,8 @@
 {
-  "name": "Giải mã Thương trường",
-  "description": "Game đố chữ đối kháng đồng đội thời gian thực phục vụ thuyết trình môn Kinh tế Chính trị Mác-Lênin",
+  "name": "Word puzzle",
+  "description": "Game đố chữ thời gian thực",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

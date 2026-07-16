@@ -28,12 +28,18 @@ const PORT = process.env.PORT || 3000;
 const rooms: Record<string, Room> = {};
 
 // Helper: Scramble keyboard letters and add distractor letters
-function generateKeyboard(keyword: string): string[] {
+function generateKeyboard(keyword: string, isMasterRound: boolean = false): string[] {
   const letters = keyword.toUpperCase().replace(/\s/g, '').split('');
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   
-  // Fill with random letters until we have 12 unique buttons, or at least 12 buttons
-  while (letters.length < 12) {
+  let targetLength = Math.max(12, letters.length);
+  if (isMasterRound) {
+    // Add 5-7 dummy letters for Master Round
+    targetLength = letters.length + 5 + Math.floor(Math.random() * 3);
+  }
+  
+  // Fill with random letters until targetLength
+  while (letters.length < targetLength) {
     const randomChar = alphabet[Math.floor(Math.random() * alphabet.length)];
     letters.push(randomChar);
   }
@@ -60,7 +66,7 @@ io.on('connection', (socket: Socket) => {
         status: 'LOBBY',
         players: {},
         hostSocketId: socket.id,
-        questionOrder: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7']
+        questionOrder: QUESTIONS.map(q => q.id)
       };
       socket.join(roomId);
       console.log(`Room created: ${roomId} by Host ${socket.id}`);
@@ -83,10 +89,10 @@ io.on('connection', (socket: Socket) => {
       return callback({ success: false, error: 'Trò chơi đã bắt đầu hoặc kết thúc!' });
     }
 
-    // Max 8 players (teams)
+    // Max 40 players (teams)
     const activePlayers = Object.values(room.players);
-    if (activePlayers.length >= 8) {
-      return callback({ success: false, error: 'Phòng đã đầy (Tối đa 8 đội chơi)!' });
+    if (activePlayers.length >= 40) {
+      return callback({ success: false, error: 'Phòng đã đầy (Tối đa 40 đội chơi)!' });
     }
 
     // Check if team name is taken
@@ -101,7 +107,8 @@ io.on('connection', (socket: Socket) => {
       teamName: teamName.trim(),
       score: 0,
       currentRound: 1,
-      isImmuneThisRound: false,
+      immuneUntil: 0,
+      inventory: { clean: 0, banana: 0, powerout: 0, earthquake: 0 },
       activeDebuff: null,
       debuffUntil: 0,
       roundScores: {},
@@ -144,7 +151,8 @@ io.on('connection', (socket: Socket) => {
       p.roundScores = {};
       p.solvedKeywords = {};
       p.activeDebuff = null;
-      p.isImmuneThisRound = false;
+      p.immuneUntil = 0;
+      p.inventory = { clean: 0, banana: 0, powerout: 0, earthquake: 0 };
     });
 
     io.to(roomId).emit('game:started', { roomId });
@@ -189,21 +197,20 @@ io.on('connection', (socket: Socket) => {
     const roundNum = player.currentRound;
 
     // Reset round-specific states
-    player.isImmuneThisRound = false;
     player.activeDebuff = null;
     player.debuffUntil = 0;
 
     // Record individual question start time
     (player as any).startTime = Date.now();
 
-    if (roundNum <= 7) {
+    if (roundNum <= QUESTIONS.length) {
       const questionId = room.questionOrder[roundNum - 1];
       const question = QUESTIONS.find(q => q.id === questionId);
       if (!question) {
         return callback({ success: false, error: 'Không tìm thấy câu hỏi!' });
       }
 
-      const keyboard = generateKeyboard(question.keyword);
+      const keyboard = generateKeyboard(question.keyword, false);
       callback({
         success: true,
         round: roundNum,
@@ -213,15 +220,15 @@ io.on('connection', (socket: Socket) => {
         isMasterRound: false,
         reviewContent: question.reviewContent
       });
-    } else if (roundNum === 8) {
+    } else if (roundNum === QUESTIONS.length + 1) {
       // Master Round!
       // Send the list of solved words to help with the deduction
       callback({
         success: true,
-        round: 8,
+        round: roundNum,
         hint: MASTER_QUESTION.hint,
         wordLength: MASTER_QUESTION.keyword.length,
-        keyboard: generateKeyboard(MASTER_QUESTION.keyword),
+        keyboard: generateKeyboard(MASTER_QUESTION.keyword, true),
         isMasterRound: true,
         reviewContent: MASTER_QUESTION.reviewContent,
         solvedWords: player.solvedKeywords
@@ -255,7 +262,7 @@ io.on('connection', (socket: Socket) => {
     const roundNum = player.currentRound;
     const submitted = data.answer.toUpperCase().replace(/\s/g, '');
 
-    if (roundNum <= 7) {
+    if (roundNum <= QUESTIONS.length) {
       const questionId = room.questionOrder[roundNum - 1];
       const question = QUESTIONS.find(q => q.id === questionId);
       if (!question) return callback({ success: false, error: 'Không tìm thấy câu hỏi!' });
@@ -296,7 +303,7 @@ io.on('connection', (socket: Socket) => {
       } else {
         callback({ success: true, correct: false, scoreEarned: 0 });
       }
-    } else if (roundNum === 8) {
+    } else if (roundNum === QUESTIONS.length + 1) {
       // Master Round
       const isCorrect = submitted === MASTER_QUESTION.keyword;
 
@@ -304,8 +311,8 @@ io.on('connection', (socket: Socket) => {
         // Flat 500 points
         const scoreEarned = 500;
         player.score += scoreEarned;
-        player.roundScores[8] = scoreEarned;
-        player.solvedKeywords['q8'] = MASTER_QUESTION.displayWord;
+        player.roundScores[roundNum] = scoreEarned;
+        player.solvedKeywords[`q${roundNum}`] = MASTER_QUESTION.displayWord;
         player.currentRound += 1; // Mark as finished
 
         callback({ success: true, correct: true, scoreEarned, nextIn: 5 });
@@ -372,7 +379,7 @@ io.on('connection', (socket: Socket) => {
     spell?: SpellType;
     error?: string; 
   }) => void) => {
-    const { room, player } = getPlayerAndRoom();
+    const { room, player, roomId } = getPlayerAndRoom();
     if (!room || !player) return callback({ success: false, error: 'Xác thực không hợp lệ!' });
 
     const qId = (player as any).activeMagicQuestionId;
@@ -400,12 +407,21 @@ io.on('connection', (socket: Socket) => {
       // Award random power
       const spells: SpellType[] = ['clean', 'banana', 'powerout', 'earthquake'];
       const awarded = spells[Math.floor(Math.random() * spells.length)];
-      (player as any).availableSpell = awarded;
+      if (!player.inventory) {
+        player.inventory = { clean: 0, banana: 0, powerout: 0, earthquake: 0 };
+      }
+      player.inventory[awarded]++;
 
       callback({
         success: true,
         correct: true,
         spell: awarded
+      });
+
+      io.to(roomId!).emit('room:updated', {
+        roomId,
+        status: room.status,
+        players: Object.values(room.players)
       });
     } else {
       callback({
@@ -417,29 +433,40 @@ io.on('connection', (socket: Socket) => {
   });
 
   // 9. Player: Cast Debuff on Target Team
-  socket.on('player:cast_spell', (data: { targetSocketId: string }, callback: (response: { success: boolean; error?: string }) => void) => {
+  socket.on('player:cast_spell', (data: { targetSocketId: string; spellType: SpellType }, callback: (response: { success: boolean; error?: string; cleanedKeyboard?: string[] }) => void) => {
     const { room, player, roomId } = getPlayerAndRoom();
     if (!room || !player) return callback({ success: false, error: 'Xác thực không hợp lệ!' });
 
-    const spell = (player as any).availableSpell;
-    if (!spell) {
-      return callback({ success: false, error: 'Bạn không sở hữu phép thuật nào!' });
+    if (!player.inventory) {
+      player.inventory = { clean: 0, banana: 0, powerout: 0, earthquake: 0 };
+    }
+
+    const spell = data.spellType;
+    if (!spell || !player.inventory || player.inventory[spell] <= 0) {
+      return callback({ success: false, error: 'Bạn không sở hữu phép thuật này!' });
     }
 
     if (spell === 'clean') {
-      (player as any).availableSpell = null;
+      player.inventory[spell]--;
       const roundNum = player.currentRound;
       let question;
-      if (roundNum <= 7) {
+      if (roundNum <= QUESTIONS.length) {
          const questionId = room.questionOrder[roundNum - 1];
          question = QUESTIONS.find(q => q.id === questionId);
       } else {
          question = MASTER_QUESTION;
       }
       const answerChars = question ? question.keyword.split('') : [];
+
+      io.to(roomId!).emit('room:updated', {
+        roomId,
+        status: room.status,
+        players: Object.values(room.players)
+      });
       return callback({ success: true, cleanedKeyboard: answerChars });
     }
 
+    // Default target for 'clean' might be itself, but clean was already processed above
     const target = room.players[data.targetSocketId];
     if (!target) {
       return callback({ success: false, error: 'Đối thủ không tồn tại hoặc đã rời phòng!' });
@@ -450,22 +477,23 @@ io.on('connection', (socket: Socket) => {
     }
 
     // Debuff cast verification: check shield
-    if (target.isImmuneThisRound) {
+    if (target.immuneUntil > Date.now()) {
       return callback({ success: false, error: `${target.teamName} đang có Khiên bảo vệ!` });
     }
 
     // Apply debuff
+    const durationSec = spell === 'banana' ? 8 : 5;
     target.activeDebuff = spell;
-    target.isImmuneThisRound = true; // Gets shield now
-    target.debuffUntil = Date.now() + 5000; // 5 seconds duration
+    target.immuneUntil = Date.now() + 15000; // Gets temporary shield now
+    target.debuffUntil = Date.now() + durationSec * 1000;
 
     // Clear caster spell
-    (player as any).availableSpell = null;
+    player.inventory[spell]--;
 
     // Send direct event to target socket to activate visual effect immediately
     io.to(target.socketId).emit('debuff:applied', {
       type: spell,
-      duration: 5,
+      duration: durationSec,
       casterName: player.teamName
     });
 
@@ -491,9 +519,8 @@ io.on('connection', (socket: Socket) => {
         p.currentRound = 1;
         p.roundScores = {};
         p.solvedKeywords = {};
-        p.activeDebuff = null;
-        p.isImmuneThisRound = false;
-        (p as any).availableSpell = null;
+        p.immuneUntil = 0;
+        p.inventory = { clean: 0, banana: 0, powerout: 0, earthquake: 0 };
       });
 
       io.to(roomId).emit('game:reset');

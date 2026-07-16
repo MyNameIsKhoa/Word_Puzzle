@@ -20,8 +20,9 @@ export interface Player {
   socketId: string;
   teamName: string;
   score: number;
-  currentRound: number; // 1 to 8
-  isImmuneThisRound: boolean;
+  currentRound: number; // 1 to 15
+  immuneUntil: number; // Timestamp for 15s shield
+  inventory: Record<SpellType, number>;
   activeDebuff: SpellType | null;
   debuffUntil: number; // Timestamp
   roundScores: Record<number, number>; // round number -> score

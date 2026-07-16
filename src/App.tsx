@@ -5,7 +5,7 @@ import {
   Shield, Zap, Award, Users, Play, RefreshCw,
   AlertCircle, CheckCircle2, XCircle, Gamepad2,
   Timer, Lightbulb, Trophy, Sparkles, Target,
-  Smile, Flame, Lock, Tv, ArrowLeft, Image as ImageIcon
+  Smile, Flame, Lock, Tv, ArrowLeft, Image as ImageIcon, HelpCircle
 } from 'lucide-react';
 import { Player, SpellType } from './types';
 
@@ -88,12 +88,13 @@ export default function App() {
   const [magicResultText, setMagicResultText] = useState<{ text: string, isError: boolean } | null>(null);
   const [magicTimeLeft, setMagicTimeLeft] = useState<number>(10);
   const [selectedMagicOption, setSelectedMagicOption] = useState<number | null>(null);
-  const [earnedSpell, setEarnedSpell] = useState<SpellType | null>(null);
+  const [inventory, setInventory] = useState<Record<SpellType, number>>({ clean: 0, banana: 0, powerout: 0, earthquake: 0 });
   const [targetModal, setTargetModal] = useState<SpellType | null>(null);
 
   const [activeDebuff, setActiveDebuff] = useState<SpellType | null>(null);
   const [debuffCaster, setDebuffCaster] = useState<string>('');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [showTutorial, setShowTutorial] = useState<boolean>(false);
 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
@@ -196,7 +197,8 @@ export default function App() {
       const me = data.players.find((p: any) => p.socketId === socket.id);
       if (me) {
         setPlayerRound(me.currentRound);
-        if (me.currentRound > 8) setGameState('FINISHED');
+        if (me.inventory) setInventory(me.inventory);
+        if (me.currentRound > 15) setGameState('FINISHED');
       }
     });
 
@@ -215,7 +217,7 @@ export default function App() {
       setActiveQuestion(null);
       setTypedAnswer([]);
       setPool([]);
-      setEarnedSpell(null);
+      setInventory({ clean: 0, banana: 0, powerout: 0, earthquake: 0 });
       setTargetModal(null);
       setDebuffToast(null);
     });
@@ -270,7 +272,7 @@ export default function App() {
 
         setPool(newPool);
 
-        setTimeRemaining(45);
+        setTimeRemaining(res.isMasterRound ? 60 : 45);
         setResultPopup(null);
         setKnowledgePopup(null);
       } else {
@@ -380,19 +382,16 @@ export default function App() {
       }
       setTimeout(() => {
         setMagicActive(false);
-        setMagicCooldown(20);
+        setMagicCooldown(15);
         setMagicResultText(null);
-        if (res.success && res.correct) {
-          setEarnedSpell(res.spell);
-        }
       }, 1500);
     });
   };
 
-  const handleCastSpell = (targetSocketId: string) => {
-    socket.emit('player:cast_spell', { targetSocketId }, (res: any) => {
+  const handleCastSpell = (targetSocketId: string, spellType: SpellType) => {
+    socket.emit('player:cast_spell', { targetSocketId, spellType }, (res: any) => {
       if (res.success) {
-        if (earnedSpell === 'clean' && res.cleanedKeyboard) {
+        if (spellType === 'clean' && res.cleanedKeyboard) {
           setTypedAnswer(Array(activeQuestion.wordLength).fill({ char: null, sourceId: null }));
           setPool(prevPool => {
             let toKeep = [...res.cleanedKeyboard];
@@ -409,7 +408,6 @@ export default function App() {
         } else {
           if (soundEnabledRef.current) SoundEffects.playPowerUp();
         }
-        setEarnedSpell(null);
         setTargetModal(null);
       } else {
         setResultPopup({ type: 'error', msg: res.error || 'Lỗi ném phép!' });
@@ -418,8 +416,9 @@ export default function App() {
   };
 
   const handleSpellActionClick = (spellId: SpellType) => {
+    if (inventory[spellId] <= 0) return;
     if (spellId === 'clean') {
-      handleCastSpell(socket.id);
+      handleCastSpell(socket.id, spellId);
     } else {
       setTargetModal(spellId);
     }
@@ -473,23 +472,27 @@ export default function App() {
               className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl border-2 border-purple-200"
             >
               <h3 className="text-2xl font-black text-slate-800 text-center mb-6">Chọn Mục Tiêu</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto pr-2">
                 {players.filter(p => p.socketId !== socket.id).map(p => (
                   <button
                     key={p.socketId}
-                    onClick={() => handleCastSpell(p.socketId)}
-                    disabled={p.isImmuneThisRound}
-                    className="p-4 bg-slate-50 border-2 border-slate-200 hover:border-purple-500 hover:bg-purple-50 rounded-xl transition flex flex-col items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleCastSpell(p.socketId, targetModal as SpellType)}
+                    disabled={p.immuneUntil > Date.now()}
+                    className="w-full flex justify-between items-center p-4 bg-slate-50 border-2 border-slate-200 hover:border-purple-500 hover:bg-purple-50 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
-                    <span className="font-bold text-slate-700 truncate w-full text-center">{p.teamName}</span>
-                    {p.isImmuneThisRound ? <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-black flex items-center gap-1"><Shield size={12} /> Có Khiên</span> : <span className="text-xs text-slate-400">Ném Phép</span>}
+                    <span className="font-bold text-slate-700 truncate text-lg">{p.teamName}</span>
+                    {p.immuneUntil > Date.now() ? (
+                      <span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-black flex items-center gap-1"><Shield size={14} /> Có Khiên</span>
+                    ) : (
+                      <span className="text-sm font-bold bg-purple-100 text-purple-700 px-4 py-1.5 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition shadow-sm">Ném Phép</span>
+                    )}
                   </button>
                 ))}
                 {players.filter(p => p.socketId !== socket.id).length === 0 && (
-                  <div className="col-span-2 text-center text-slate-400 font-bold py-4">Chưa có đối thủ nào trong phòng!</div>
+                  <div className="text-center text-slate-400 font-bold py-8">Chưa có đối thủ nào trong phòng!</div>
                 )}
               </div>
-              <button onClick={() => setTargetModal(null)} className="mt-6 w-full py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition">Hủy Bỏ</button>
+              <button onClick={() => setTargetModal(null)} className="mt-6 w-full py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition shadow-sm">Hủy Bỏ</button>
             </motion.div>
           </div>
         )}
@@ -543,7 +546,7 @@ export default function App() {
           >
             <div className={`p-6 text-center ${resultPopup.type === 'success' ? 'bg-emerald-50' : resultPopup.type === 'error' ? 'bg-red-50' : 'bg-blue-50'}`}>
               <div className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-4 ${resultPopup.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
-                  resultPopup.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                resultPopup.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
                 }`}>
                 {resultPopup.type === 'success' ? <CheckCircle2 size={32} /> : resultPopup.type === 'error' ? <XCircle size={32} /> : <AlertCircle size={32} />}
               </div>
@@ -556,15 +559,70 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showTutorial && (
+          <div className="fixed inset-0 z-[400] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="p-6 bg-slate-800 text-white flex justify-between items-center">
+                <h3 className="text-2xl font-black flex items-center gap-2"><HelpCircle size={28} className="text-emerald-400" /> HƯỚNG DẪN LUẬT CHƠI</h3>
+                <button onClick={() => setShowTutorial(false)} className="p-2 hover:bg-slate-700 rounded-xl transition text-slate-300 hover:text-white"><XCircle size={28} /></button>
+              </div>
+              <div className="p-8 overflow-y-auto space-y-6">
+                <div>
+                  <h4 className="text-xl font-bold text-slate-800 mb-2 border-b-2 border-emerald-500 inline-block">1. Luật tính điểm</h4>
+                  <ul className="list-disc pl-5 mt-3 text-slate-600 font-medium space-y-2">
+                    <li>Mỗi vòng có 45 giây. Trả lời đúng trong 15s đầu: <b>100 điểm</b>.</li>
+                    <li>Từ 15s - 45s: Điểm giảm dần từ 100 xuống 70 điểm.</li>
+                    <li>Vòng Master (60s): Trả lời đúng nhận <b>500 điểm</b> lật kèo.</li>
+                    <li>Hết giờ: Vòng chơi kết thúc, bạn sẽ được xem Nội dung ôn tập.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-slate-800 mb-2 border-b-2 border-emerald-500 inline-block">2. Phép thuật (Buff/Debuff)</h4>
+                  <p className="text-slate-600 mb-3 font-medium">Bấm vào biểu tượng <b>Phép thuật</b> góc phải dưới màn hình. Trả lời đúng 1 câu hỏi phụ để nhận ngẫu nhiên một trong các vật phẩm sau:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2 mb-2"><Sparkles className="text-yellow-500" /> <span className="font-bold">Thanh Tẩy</span></div>
+                      <p className="text-sm text-slate-600">Giải nhanh ngay lập tức câu hỏi đang hiển thị trên màn hình.</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2 mb-2"><Flame className="text-orange-500" /> <span className="font-bold">Vỏ Chuối</span></div>
+                      <p className="text-sm text-slate-600">Ném vào đối thủ khiến màn hình của họ bị che khuất và choáng trong 8 giây.</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2 mb-2"><Zap className="text-blue-500" /> <span className="font-bold">Mù Tạm Thời</span></div>
+                      <p className="text-sm text-slate-600">Gây mù lòa (tối đen màn hình) đối thủ trong 5 giây.</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2 mb-2"><Target className="text-red-500" /> <span className="font-bold">Động Đất</span></div>
+                      <p className="text-sm text-slate-600">Xáo trộn và rung lắc liên tục toàn bộ chữ cái của đối thủ trong 5 giây.</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm italic text-slate-500 bg-blue-50 p-3 rounded-lg">Lưu ý: Khi ném Debuff lên một đối thủ, họ sẽ nhận được <b>Khiên bảo vệ</b> trong thời gian 15 giây để chống bị ném liên tục.</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between shadow-sm relative z-40">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg flex items-center justify-center text-white font-black text-xl">M</div>
           <div>
-            <h1 className="text-2xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent tracking-tight">GIẢI MÃ THƯƠNG TRƯỜNG</h1>
+            <h1 className="text-2xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent tracking-tight">WORD PUZZLE</h1>
             <p className="text-sm text-slate-500 font-medium">Chủ đề 5.3: Thể chế kinh tế thị trường định hướng XHCN</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <button onClick={() => setShowTutorial(true)} className="p-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="Hướng dẫn chơi">
+            <HelpCircle size={24} />
+          </button>
           <button onClick={() => setSoundEnabled(!soundEnabled)} className="p-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="Âm thanh">
             {soundEnabled ? '🔊' : '🔇'}
           </button>
@@ -640,7 +698,7 @@ export default function App() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
                           <span className="text-2xl font-black text-slate-800">{p.teamName}</span>
-                          {p.isImmuneThisRound && <span className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200 flex items-center gap-1"><Shield size={14} /> Khiên</span>}
+                          {p.immuneUntil > Date.now() && <span className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200 flex items-center gap-1"><Shield size={14} /> Khiên</span>}
                         </div>
                         <div className="w-full bg-slate-100 h-4 rounded-full mt-3 overflow-hidden border border-slate-200">
                           <motion.div className="h-full bg-gradient-to-r from-emerald-400 to-teal-500" initial={{ width: 0 }} animate={{ width: `${Math.min(100, (p.score / 1200) * 100)}%` }} transition={{ duration: 0.8 }} />
@@ -648,7 +706,7 @@ export default function App() {
                       </div>
                       <div className="ml-8 text-right">
                         <div className="text-4xl font-black text-emerald-500 font-mono">{p.score}</div>
-                        <div className="text-sm font-bold text-slate-400 mt-1">{p.currentRound <= 8 ? `VÒNG ${p.currentRound}` : 'HOÀN THÀNH'}</div>
+                        <div className="text-sm font-bold text-slate-400 mt-1">{p.currentRound <= 15 ? `VÒNG ${p.currentRound}` : 'HOÀN THÀNH'}</div>
                       </div>
                     </motion.div>
                   ))}
@@ -719,11 +777,15 @@ export default function App() {
                     { id: 'powerout', icon: <Zap size={20} />, color: 'text-slate-800', bg: 'bg-slate-100', border: 'border-slate-300', tooltip: 'Cúp Điện: Tối đen 5s' },
                     { id: 'earthquake', icon: <span className="text-xl">🌋</span>, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', tooltip: 'Động Đất: Rung lắc' }
                   ].map(spell => {
-                    const isActive = earnedSpell === spell.id;
+                    const count = inventory[spell.id as SpellType] || 0;
+                    const isActive = count > 0;
                     return (
                       <div key={spell.id} className="group relative w-full flex justify-center">
-                        <div onClick={() => isActive ? handleSpellActionClick(spell.id as SpellType) : null} className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all ${isActive ? `${spell.bg} ${spell.border} shadow-md scale-110 cursor-pointer animate-pulse` : 'bg-white border-slate-100 opacity-40 grayscale'}`}>
+                        <div onClick={() => isActive ? handleSpellActionClick(spell.id as SpellType) : undefined} className={`relative w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all ${isActive ? `${spell.bg} ${spell.border} shadow-md hover:scale-110 cursor-pointer` : 'bg-slate-50 border-slate-200 opacity-50 grayscale cursor-not-allowed'}`}>
                           <div className={isActive ? spell.color : 'text-slate-400'}>{spell.icon}</div>
+                          <span className={`absolute -bottom-2 -right-2 px-1.5 py-0.5 text-[10px] font-black rounded border shadow-sm ${isActive ? 'bg-red-500 text-white border-red-600' : 'bg-slate-200 text-slate-500 border-slate-300'}`}>
+                            x{count}
+                          </span>
                         </div>
                         {/* Tooltip */}
                         <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-800 text-white text-[10px] font-bold rounded-lg shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
@@ -742,6 +804,9 @@ export default function App() {
 
               {/* Question Card */}
               <div className="bg-white border-2 border-emerald-100 rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col min-h-[140px]">
+                <div className="absolute top-0 left-0 bg-slate-800 text-white font-bold px-4 py-1.5 rounded-br-2xl shadow text-sm flex items-center gap-2">
+                  👤 {teamName}
+                </div>
                 <div className="absolute top-0 right-0 bg-emerald-500 text-white font-black px-6 py-2 rounded-bl-2xl shadow">
                   {activeQuestion.isMasterRound ? 'VÒNG MASTER' : `VÒNG ${activeQuestion.round}`}
                 </div>
@@ -780,7 +845,7 @@ export default function App() {
                             animate={{ x: b.offsetX, y: b.offsetY, rotate: b.rotate }}
                             whileHover={{ scale: 1.1 }}
                             transition={{ type: "spring", stiffness: 100, damping: 15 }}
-                            className={`w-24 h-24 border-[3px] shadow-lg flex items-center justify-center font-black text-4xl cursor-pointer z-10 ${b.colorClass}`}
+                            className={`${activeQuestion?.isMasterRound ? 'w-20 h-20 text-3xl' : 'w-24 h-24 text-4xl'} border-[3px] shadow-lg flex items-center justify-center font-black cursor-pointer z-10 ${b.colorClass}`}
                             style={{ borderRadius: b.borderRadius }}
                           >
                             {b.char}
@@ -834,9 +899,9 @@ export default function App() {
               {/* Magic Buff Area */}
               <div className="bg-purple-50 border-2 border-purple-200 rounded-2xl p-4 shadow-sm min-h-[200px] flex flex-col justify-center">
                 {!magicActive ? (
-                  <button onClick={handleRequestMagic} disabled={magicCooldown > 0 || earnedSpell !== null} className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-3 px-2 rounded-xl shadow transition text-xs leading-relaxed cursor-pointer flex flex-col items-center justify-center gap-1 text-center">
+                  <button onClick={handleRequestMagic} disabled={magicCooldown > 0} className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-3 px-2 rounded-xl shadow transition text-xs leading-relaxed cursor-pointer flex flex-col items-center justify-center gap-1 text-center">
                     <Sparkles size={16} className="shrink-0" />
-                    {magicCooldown > 0 ? `HỒI CHIÊU (${magicCooldown}s)` : earnedSpell !== null ? 'ĐANG CÓ VẬT PHẨM' : 'TRẢ LỜI CÂU HỎI NHẬN VẬT PHẨM'}
+                    {magicCooldown > 0 ? `HỒI CHIÊU (${magicCooldown}s)` : 'TRẢ LỜI CÂU HỎI NHẬN VẬT PHẨM'}
                   </button>
                 ) : (
                   <div className="space-y-3">
@@ -868,7 +933,7 @@ export default function App() {
 
       </main>
       <footer className="bg-white border-t border-slate-200 px-8 py-4 flex justify-between text-xs font-bold text-slate-400 relative z-40">
-        <span>© 2026 Giải mã Thương trường</span>
+        <span>© 2026 Word Puzzle</span>
         <span>Chủ đề 5.3: Thể chế kinh tế thị trường định hướng XHCN</span>
       </footer>
     </div>
