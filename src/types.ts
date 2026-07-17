@@ -36,4 +36,6 @@ export interface Room {
   players: Record<string, Player>; // socketId -> Player
   hostSocketId: string | null;
   questionOrder: string[]; // List of question IDs for this room
+  isPaused: boolean;
+  globalTimeLeft: number;
 }

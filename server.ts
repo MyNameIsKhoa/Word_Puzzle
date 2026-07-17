@@ -26,6 +26,7 @@ const PORT = process.env.PORT || 3000;
 
 // In-Memory Database
 const rooms: Record<string, Room> = {};
+const roomTimers: Record<string, NodeJS.Timeout> = {};
 
 // Helper: Scramble keyboard letters and add distractor letters
 function generateKeyboard(keyword: string, isMasterRound: boolean = false): string[] {
@@ -76,7 +77,9 @@ io.on('connection', (socket: Socket) => {
         status: 'LOBBY',
         players: {},
         hostSocketId: socket.id,
-        questionOrder: getShuffledQuestionOrder()
+        questionOrder: getShuffledQuestionOrder(),
+        isPaused: false,
+        globalTimeLeft: 735
       };
       socket.join(roomId);
       console.log(`Room created: ${roomId} by Host ${socket.id}`);
@@ -154,7 +157,36 @@ io.on('connection', (socket: Socket) => {
     }
 
     room.status = 'PLAYING';
+    room.isPaused = false;
+    room.globalTimeLeft = 735;
     
+    if (roomTimers[roomId]) {
+      clearInterval(roomTimers[roomId]);
+    }
+
+    roomTimers[roomId] = setInterval(() => {
+      if (room.status !== 'PLAYING') {
+        clearInterval(roomTimers[roomId]);
+        return;
+      }
+      if (!room.isPaused) {
+        room.globalTimeLeft--;
+        if (room.hostSocketId) {
+          io.to(room.hostSocketId).emit('host:timer_update', room.globalTimeLeft);
+        }
+        if (room.globalTimeLeft <= 0) {
+          clearInterval(roomTimers[roomId]);
+          room.status = 'FINISHED';
+          io.to(roomId).emit('game:time_up_force_end');
+          io.to(roomId).emit('room:updated', {
+            roomId,
+            status: room.status,
+            players: Object.values(room.players)
+          });
+        }
+      }
+    }, 1000);
+
     // Set all players' rounds to 1
     Object.values(room.players).forEach(p => {
       p.currentRound = 1;
@@ -188,6 +220,24 @@ io.on('connection', (socket: Socket) => {
     }
     return {};
   };
+
+  // Host: Toggle Pause
+  socket.on('host:toggle_pause', (data: { roomId: string }, callback: (response: { success: boolean; isPaused?: boolean; error?: string }) => void) => {
+    const { roomId } = data;
+    const room = rooms[roomId];
+
+    if (!room) {
+      return callback({ success: false, error: 'Phòng không tồn tại!' });
+    }
+
+    if (room.hostSocketId !== socket.id) {
+      return callback({ success: false, error: 'Chỉ có Host mới có quyền tạm dừng!' });
+    }
+
+    room.isPaused = !room.isPaused;
+    io.to(roomId).emit('game:pause_state_changed', room.isPaused);
+    callback({ success: true, isPaused: room.isPaused });
+  });
 
   // 4. Player: Fetch Current Question details
   socket.on('player:ready_for_question', (callback: (response: { 
@@ -330,6 +380,10 @@ io.on('connection', (socket: Socket) => {
         player.currentRound += 1; // Mark as finished
         player.debuffsReceivedThisRound = 0;
         player.immuneUntil = 0;
+
+        if (roomTimers[roomId!]) {
+          clearInterval(roomTimers[roomId!]);
+        }
 
         callback({ success: true, correct: true, scoreEarned, nextIn: 5 });
 
@@ -550,6 +604,10 @@ io.on('connection', (socket: Socket) => {
         p.debuffsReceivedThisRound = 0;
       });
 
+      if (roomTimers[roomId]) {
+        clearInterval(roomTimers[roomId]);
+      }
+
       io.to(roomId).emit('game:reset');
       callback({ success: true });
 
@@ -587,6 +645,9 @@ io.on('connection', (socket: Socket) => {
       // Check if Host disconnected
       if (room.hostSocketId === socket.id) {
         console.log(`Host disconnected from Room ${roomId}. Clearing room.`);
+        if (roomTimers[roomId]) {
+          clearInterval(roomTimers[roomId]);
+        }
         io.to(roomId).emit('host:left');
         delete rooms[roomId];
         break;

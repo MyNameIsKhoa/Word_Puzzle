@@ -99,6 +99,9 @@ export default function App() {
 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [globalTimer, setGlobalTimer] = useState<number>(735);
+
   const roleRef = useRef(role);
   const soundEnabledRef = useRef(soundEnabled);
   const activeQuestionRef = useRef<any>(null);
@@ -247,6 +250,18 @@ export default function App() {
     socket.on('host:left', () => {
       setErrorMsg('Màn hình Host đã đóng kết nối!');
       setRole('SELECT');
+    });
+
+    socket.on('game:pause_state_changed', (paused: boolean) => {
+      setIsPaused(paused);
+    });
+
+    socket.on('game:time_up_force_end', () => {
+      setGameState('FINISHED');
+    });
+
+    socket.on('host:timer_update', (timeLeft: number) => {
+      setGlobalTimer(timeLeft);
     });
 
     socket.on('debuff:applied', (data: any) => {
@@ -698,7 +713,17 @@ export default function App() {
             <div className="bg-slate-800 p-8 text-white flex justify-between items-center">
               <div>
                 <h2 className="text-3xl font-black text-emerald-400">ĐẤU TRƯỜNG THƯƠNG TRƯỜNG</h2>
-                <p className="text-slate-400 font-medium mt-2">Bảng Xếp Hạng Tổng Hợp</p>
+                <div className="flex items-center gap-4 mt-2">
+                  <p className="text-slate-400 font-medium">Bảng Xếp Hạng Tổng Hợp</p>
+                  {gameState === 'PLAYING' && (
+                    <div className="bg-slate-900/50 px-4 py-1.5 rounded-lg border border-slate-700 flex items-center gap-2">
+                      <span className="text-slate-400 font-bold text-sm">Thời gian:</span>
+                      <span className={`font-mono text-xl font-black tracking-widest ${globalTimer <= 60 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+                        {Math.floor(globalTimer / 60).toString().padStart(2, '0')}:{(globalTimer % 60).toString().padStart(2, '0')}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 <button onClick={() => window.location.reload()} className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl transition cursor-pointer">
@@ -706,6 +731,11 @@ export default function App() {
                 </button>
                 {gameState === 'LOBBY' && (
                   <button onClick={handleHostStart} disabled={players.length === 0} className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-600 disabled:text-slate-400 text-slate-900 font-black py-4 px-10 rounded-2xl shadow-xl transition-all text-xl cursor-pointer">BẮT ĐẦU CHƠI</button>
+                )}
+                {gameState === 'PLAYING' && (
+                  <button onClick={() => socket?.emit('host:toggle_pause', { roomId: currentRoom }, () => {})} className={`font-bold py-3 px-6 rounded-xl transition cursor-pointer ${isPaused ? 'bg-amber-500 hover:bg-amber-400 text-slate-900' : 'bg-slate-600 hover:bg-slate-500 text-white'}`}>
+                    {isPaused ? 'Tiếp tục Game' : 'Tạm dừng'}
+                  </button>
                 )}
                 {gameState !== 'LOBBY' && (
                   <button onClick={handleHostReset} className="bg-red-500 hover:bg-red-400 text-white font-bold py-3 px-6 rounded-xl transition cursor-pointer">Làm lại</button>
@@ -959,6 +989,15 @@ export default function App() {
                 )}
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {isPaused && (
+          <div className="fixed inset-0 z-[9999] bg-slate-900/80 flex flex-col items-center justify-center p-4 backdrop-blur-md pointer-events-auto">
+            <div className="bg-red-500 text-white rounded-3xl p-10 max-w-2xl text-center shadow-[0_0_100px_rgba(239,68,68,0.5)] animate-pulse">
+              <h2 className="text-4xl md:text-5xl font-black mb-4">🛑 TRÒ CHƠI ĐANG TẠM DỪNG</h2>
+              <p className="text-xl md:text-2xl font-bold opacity-90">Vui lòng chú ý lên bảng!</p>
             </div>
           </div>
         )}
