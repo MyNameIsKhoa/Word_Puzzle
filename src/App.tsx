@@ -469,27 +469,28 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl border-2 border-purple-200"
+              className="bg-white rounded-3xl p-8 max-w-4xl w-[90vw] shadow-2xl border-2 border-purple-200"
             >
               <h3 className="text-2xl font-black text-slate-800 text-center mb-6">Chọn Mục Tiêu</h3>
-              <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto pr-2">
-                {players.filter(p => p.socketId !== socket.id).map(p => (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto pr-2 pb-2">
+                {players
+                  .filter(p => p.socketId !== socket.id)
+                  .sort((a, b) => a.teamName.localeCompare(b.teamName))
+                  .map(p => (
                   <button
                     key={p.socketId}
                     onClick={() => handleCastSpell(p.socketId, targetModal as SpellType)}
                     disabled={p.immuneUntil > Date.now()}
-                    className="w-full flex justify-between items-center p-4 bg-slate-50 border-2 border-slate-200 hover:border-purple-500 hover:bg-purple-50 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed group"
+                    className="w-full flex justify-between items-center p-3 bg-slate-50 border-2 border-slate-200 hover:border-purple-500 hover:bg-purple-100 hover:-translate-y-1 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm"
                   >
-                    <span className="font-bold text-slate-700 truncate text-lg">{p.teamName}</span>
-                    {p.immuneUntil > Date.now() ? (
-                      <span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-black flex items-center gap-1"><Shield size={14} /> Có Khiên</span>
-                    ) : (
-                      <span className="text-sm font-bold bg-purple-100 text-purple-700 px-4 py-1.5 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition shadow-sm">Dùng vật phẩm</span>
+                    <span className="font-bold text-slate-700 truncate text-base" title={p.teamName}>{p.teamName}</span>
+                    {p.immuneUntil > Date.now() && (
+                      <span className="text-emerald-500 flex-shrink-0" title="Đang có khiên"><Shield size={18} className="fill-emerald-100" /></span>
                     )}
                   </button>
                 ))}
                 {players.filter(p => p.socketId !== socket.id).length === 0 && (
-                  <div className="text-center text-slate-400 font-bold py-8">Chưa có đối thủ nào trong phòng!</div>
+                  <div className="col-span-full text-center text-slate-400 font-bold py-8">Chưa có đối thủ nào trong phòng!</div>
                 )}
               </div>
               <button onClick={() => setTargetModal(null)} className="mt-6 w-full py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition shadow-sm">Hủy Bỏ</button>

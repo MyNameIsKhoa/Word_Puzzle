@@ -53,6 +53,16 @@ function generateKeyboard(keyword: string, isMasterRound: boolean = false): stri
   return letters;
 }
 
+// Helper: Get shuffled order for regular questions (1-14)
+function getShuffledQuestionOrder(): string[] {
+  const ids = QUESTIONS.map(q => q.id);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  return ids;
+}
+
 // Socket.io Handlers
 io.on('connection', (socket: Socket) => {
   console.log(`Socket connected: ${socket.id}`);
@@ -66,7 +76,7 @@ io.on('connection', (socket: Socket) => {
         status: 'LOBBY',
         players: {},
         hostSocketId: socket.id,
-        questionOrder: QUESTIONS.map(q => q.id)
+        questionOrder: getShuffledQuestionOrder()
       };
       socket.join(roomId);
       console.log(`Room created: ${roomId} by Host ${socket.id}`);
@@ -112,7 +122,8 @@ io.on('connection', (socket: Socket) => {
       activeDebuff: null,
       debuffUntil: 0,
       roundScores: {},
-      solvedKeywords: {}
+      solvedKeywords: {},
+      debuffsReceivedThisRound: 0
     };
 
     room.players[socket.id] = newPlayer;
@@ -153,6 +164,7 @@ io.on('connection', (socket: Socket) => {
       p.activeDebuff = null;
       p.immuneUntil = 0;
       p.inventory = { clean: 0, banana: 0, powerout: 0, earthquake: 0 };
+      p.debuffsReceivedThisRound = 0;
     });
 
     io.to(roomId).emit('game:started', { roomId });
@@ -291,6 +303,8 @@ io.on('connection', (socket: Socket) => {
         player.roundScores[roundNum] = scoreEarned;
         player.solvedKeywords[questionId] = question.displayWord; // Keep diacritics solved word for round 8
         player.currentRound += 1;
+        player.debuffsReceivedThisRound = 0;
+        player.immuneUntil = 0;
 
         callback({ success: true, correct: true, scoreEarned, nextIn: 5 });
 
@@ -314,6 +328,8 @@ io.on('connection', (socket: Socket) => {
         player.roundScores[roundNum] = scoreEarned;
         player.solvedKeywords[`q${roundNum}`] = MASTER_QUESTION.displayWord;
         player.currentRound += 1; // Mark as finished
+        player.debuffsReceivedThisRound = 0;
+        player.immuneUntil = 0;
 
         callback({ success: true, correct: true, scoreEarned, nextIn: 5 });
 
@@ -337,6 +353,8 @@ io.on('connection', (socket: Socket) => {
     const roundNum = player.currentRound;
     player.roundScores[roundNum] = 0;
     player.currentRound += 1;
+    player.debuffsReceivedThisRound = 0;
+    player.immuneUntil = 0;
 
     callback({ success: true });
 
@@ -484,7 +502,14 @@ io.on('connection', (socket: Socket) => {
     // Apply debuff
     const durationSec = spell === 'banana' ? 8 : 5;
     target.activeDebuff = spell;
-    target.immuneUntil = Date.now() + 15000; // Gets temporary shield now
+    
+    target.debuffsReceivedThisRound = (target.debuffsReceivedThisRound || 0) + 1;
+    if (target.debuffsReceivedThisRound >= 2) {
+      target.immuneUntil = Date.now() + 999999999; // Infinite shield until round ends
+    } else {
+      target.immuneUntil = Date.now() + 15000; // Temporary 15s shield
+    }
+    
     target.debuffUntil = Date.now() + durationSec * 1000;
 
     // Clear caster spell
@@ -514,6 +539,7 @@ io.on('connection', (socket: Socket) => {
 
     if (room && room.hostSocketId === socket.id) {
       room.status = 'LOBBY';
+      room.questionOrder = getShuffledQuestionOrder(); // Reshuffle on reset
       Object.values(room.players).forEach(p => {
         p.score = 0;
         p.currentRound = 1;
@@ -521,6 +547,7 @@ io.on('connection', (socket: Socket) => {
         p.solvedKeywords = {};
         p.immuneUntil = 0;
         p.inventory = { clean: 0, banana: 0, powerout: 0, earthquake: 0 };
+        p.debuffsReceivedThisRound = 0;
       });
 
       io.to(roomId).emit('game:reset');

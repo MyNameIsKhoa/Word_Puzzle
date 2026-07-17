@@ -25,6 +25,7 @@ export interface Player {
   inventory: Record<SpellType, number>;
   activeDebuff: SpellType | null;
   debuffUntil: number; // Timestamp
+  debuffsReceivedThisRound: number;
   roundScores: Record<number, number>; // round number -> score
   solvedKeywords: Record<string, string>; // question id -> word if solved, or empty
 }
