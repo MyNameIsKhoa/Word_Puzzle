@@ -80,6 +80,7 @@ export default function App() {
 
   const [resultPopup, setResultPopup] = useState<{ type: 'success' | 'error' | 'info'; msg: string } | null>(null);
   const [knowledgePopup, setKnowledgePopup] = useState<any>(null);
+  const [nextButtonCooldown, setNextButtonCooldown] = useState<number>(0);
   const [debuffToast, setDebuffToast] = useState<{ spell: SpellType; caster: string } | null>(null);
 
   const [magicCooldown, setMagicCooldown] = useState<number>(0);
@@ -112,6 +113,27 @@ export default function App() {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (knowledgePopup) {
+      setNextButtonCooldown(3);
+      interval = setInterval(() => {
+        setNextButtonCooldown(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      setNextButtonCooldown(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [knowledgePopup]);
 
   useEffect(() => {
     let qTimer: NodeJS.Timeout;
@@ -511,7 +533,7 @@ export default function App() {
             >
               <div className={`p-6 text-white text-center ${knowledgePopup.isTimeout ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-emerald-500 to-teal-600'}`}>
                 <Lightbulb size={48} className={`mx-auto mb-3 animate-pulse ${knowledgePopup.isTimeout ? 'text-red-200' : 'text-yellow-300'}`} />
-                <h3 className="text-3xl font-black">{knowledgePopup.isTimeout ? 'ĐÃ HẾT GIỜ!' : 'NỘI DUNG ÔN TẬP'}</h3>
+                <h3 className="text-3xl font-black">{knowledgePopup.isTimeout ? 'ĐÃ HẾT GIỜ!' : 'NỘI DUNG KIẾN THỨC'}</h3>
                 <p className="mt-2 font-bold text-lg text-white/80">Đáp án: <span className="text-white text-2xl ml-2 tracking-widest uppercase">{knowledgePopup.displayWord}</span></p>
               </div>
               <div className="p-8 overflow-y-auto space-y-4">
@@ -525,9 +547,10 @@ export default function App() {
               <div className="p-6 bg-slate-50 border-t border-slate-200 text-center">
                 <button
                   onClick={() => { setKnowledgePopup(null); loadQuestion(); }}
-                  className={`text-white font-black text-xl py-4 px-12 rounded-2xl shadow-xl transition-all hover:scale-105 cursor-pointer ${knowledgePopup.isTimeout ? 'bg-red-500 hover:bg-red-400' : 'bg-emerald-500 hover:bg-emerald-400'}`}
+                  disabled={nextButtonCooldown > 0}
+                  className={`text-white font-black text-xl py-4 px-12 rounded-2xl shadow-xl transition-all ${nextButtonCooldown > 0 ? 'bg-slate-400 cursor-not-allowed opacity-80' : `hover:scale-105 cursor-pointer ${knowledgePopup.isTimeout ? 'bg-red-500 hover:bg-red-400' : 'bg-emerald-500 hover:bg-emerald-400'}`}`}
                 >
-                  CÂU TIẾP THEO
+                  {nextButtonCooldown > 0 ? `TIẾP TỤC (${nextButtonCooldown}s)` : 'TIẾP TỤC'}
                 </button>
               </div>
             </motion.div>
