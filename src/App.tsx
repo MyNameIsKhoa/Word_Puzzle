@@ -140,7 +140,7 @@ export default function App() {
 
   useEffect(() => {
     let qTimer: NodeJS.Timeout;
-    if (role === 'PLAYER' && gameState === 'PLAYING' && !knowledgePopup && resultPopup?.type !== 'success') {
+    if (role === 'PLAYER' && gameState === 'PLAYING' && !knowledgePopup && resultPopup?.type !== 'success' && !isPaused) {
       qTimer = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
@@ -155,11 +155,11 @@ export default function App() {
       }, 1000);
     }
     return () => clearInterval(qTimer);
-  }, [role, gameState, resultPopup, knowledgePopup]);
+  }, [role, gameState, resultPopup, knowledgePopup, isPaused]);
 
   useEffect(() => {
     let mTimer: NodeJS.Timeout;
-    if (magicActive && magicTimeLeft > 0 && selectedMagicOption === null && !magicResultText) {
+    if (magicActive && magicTimeLeft > 0 && selectedMagicOption === null && !magicResultText && !isPaused) {
       mTimer = setInterval(() => {
         setMagicTimeLeft((prev) => {
           if (prev <= 1) {
@@ -177,15 +177,15 @@ export default function App() {
       }, 1000);
     }
     return () => clearInterval(mTimer);
-  }, [magicActive, magicTimeLeft, selectedMagicOption, magicResultText]);
+  }, [magicActive, magicTimeLeft, selectedMagicOption, magicResultText, isPaused]);
 
   useEffect(() => {
     let cTimer: NodeJS.Timeout;
-    if (magicCooldown > 0) {
+    if (magicCooldown > 0 && !isPaused) {
       cTimer = setInterval(() => setMagicCooldown(prev => prev - 1), 1000);
     }
     return () => clearInterval(cTimer);
-  }, [magicCooldown]);
+  }, [magicCooldown, isPaused]);
 
   // Hệu ứng Động Đất: Xáo trộn vị trí các từ liên tục
   useEffect(() => {
@@ -733,7 +733,7 @@ export default function App() {
                   <button onClick={handleHostStart} disabled={players.length === 0} className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-600 disabled:text-slate-400 text-slate-900 font-black py-4 px-10 rounded-2xl shadow-xl transition-all text-xl cursor-pointer">BẮT ĐẦU CHƠI</button>
                 )}
                 {gameState === 'PLAYING' && (
-                  <button onClick={() => socket?.emit('host:toggle_pause', { roomId: currentRoom }, () => {})} className={`font-bold py-3 px-6 rounded-xl transition cursor-pointer ${isPaused ? 'bg-amber-500 hover:bg-amber-400 text-slate-900' : 'bg-slate-600 hover:bg-slate-500 text-white'}`}>
+                  <button onClick={() => socket?.emit('host:toggle_pause', { roomId: currentRoom }, () => { })} className={`font-bold py-3 px-6 rounded-xl transition cursor-pointer ${isPaused ? 'bg-amber-500 hover:bg-amber-400 text-slate-900' : 'bg-slate-600 hover:bg-slate-500 text-white'}`}>
                     {isPaused ? 'Tiếp tục Game' : 'Tạm dừng'}
                   </button>
                 )}
