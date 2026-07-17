@@ -655,7 +655,7 @@ export default function App() {
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg flex items-center justify-center text-white font-black text-xl">M</div>
           <div>
             <h1 className="text-2xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent tracking-tight">WORD PUZZLE</h1>
-            <p className="text-sm text-slate-500 font-medium">Chủ đề 5.3: Thể chế kinh tế thị trường định hướng XHCN</p>
+            <p className="text-sm text-slate-500 font-medium">Chủ đề 5.3: CÁC QUAN HỆ LỢI ÍCH KINH TẾ Ở VIỆT NAM</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -712,7 +712,7 @@ export default function App() {
           <div className="w-full h-full flex flex-col bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
             <div className="bg-slate-800 p-8 text-white flex justify-between items-center">
               <div>
-                <h2 className="text-3xl font-black text-emerald-400">ĐẤU TRƯỜNG THƯƠNG TRƯỜNG</h2>
+                <h2 className="text-3xl font-black text-emerald-400">WORD PUZZLE</h2>
                 <div className="flex items-center gap-4 mt-2">
                   <p className="text-slate-400 font-medium">Bảng Xếp Hạng Tổng Hợp</p>
                   {gameState === 'PLAYING' && (
@@ -1005,7 +1005,7 @@ export default function App() {
       </main>
       <footer className="bg-white border-t border-slate-200 px-8 py-4 flex justify-between text-xs font-bold text-slate-400 relative z-40">
         <span>© 2026 Word Puzzle</span>
-        <span>Chủ đề 5.3: Thể chế kinh tế thị trường định hướng XHCN</span>
+        <span>Chủ đề 5.3: CÁC QUAN HỆ LỢI ÍCH KINH TẾ Ở VIỆT NAM</span>
       </footer>
     </div>
   );
