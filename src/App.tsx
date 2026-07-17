@@ -993,7 +993,7 @@ export default function App() {
           </div>
         )}
 
-        {isPaused && (
+        {isPaused && role !== 'HOST' && (
           <div className="fixed inset-0 z-[9999] bg-slate-900/80 flex flex-col items-center justify-center p-4 backdrop-blur-md pointer-events-auto">
             <div className="bg-red-500 text-white rounded-3xl p-10 max-w-2xl text-center shadow-[0_0_100px_rgba(239,68,68,0.5)] animate-pulse">
               <h2 className="text-4xl md:text-5xl font-black mb-4">🛑 TRÒ CHƠI ĐANG TẠM DỪNG</h2>
