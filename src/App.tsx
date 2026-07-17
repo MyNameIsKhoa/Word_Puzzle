@@ -477,18 +477,18 @@ export default function App() {
                   .filter(p => p.socketId !== socket.id)
                   .sort((a, b) => a.teamName.localeCompare(b.teamName))
                   .map(p => (
-                  <button
-                    key={p.socketId}
-                    onClick={() => handleCastSpell(p.socketId, targetModal as SpellType)}
-                    disabled={p.immuneUntil > Date.now()}
-                    className="w-full flex justify-between items-center p-3 bg-slate-50 border-2 border-slate-200 hover:border-purple-500 hover:bg-purple-100 hover:-translate-y-1 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm"
-                  >
-                    <span className="font-bold text-slate-700 truncate text-base" title={p.teamName}>{p.teamName}</span>
-                    {p.immuneUntil > Date.now() && (
-                      <span className="text-emerald-500 flex-shrink-0" title="Đang có khiên"><Shield size={18} className="fill-emerald-100" /></span>
-                    )}
-                  </button>
-                ))}
+                    <button
+                      key={p.socketId}
+                      onClick={() => handleCastSpell(p.socketId, targetModal as SpellType)}
+                      disabled={p.immuneUntil > Date.now()}
+                      className="w-full flex justify-between items-center p-3 bg-slate-50 border-2 border-slate-200 hover:border-purple-500 hover:bg-purple-100 hover:-translate-y-1 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm"
+                    >
+                      <span className="font-bold text-slate-700 truncate text-base" title={p.teamName}>{p.teamName}</span>
+                      {p.immuneUntil > Date.now() && (
+                        <span className="text-emerald-500 flex-shrink-0" title="Đang có khiên"><Shield size={18} className="fill-emerald-100" /></span>
+                      )}
+                    </button>
+                  ))}
                 {players.filter(p => p.socketId !== socket.id).length === 0 && (
                   <div className="col-span-full text-center text-slate-400 font-bold py-8">Chưa có đối thủ nào trong phòng!</div>
                 )}
@@ -589,7 +589,7 @@ export default function App() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                       <div className="flex items-center gap-2 mb-2"><Sparkles className="text-yellow-500" /> <span className="font-bold">Thanh Tẩy</span></div>
-                      <p className="text-sm text-slate-600">Giải nhanh ngay lập tức câu hỏi đang hiển thị trên màn hình.</p>
+                      <p className="text-sm text-slate-600">Loại bỏ toàn bộ chữ cái gây nhiễu, chỉ giữ lại đúng các chữ cái của đáp án.</p>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                       <div className="flex items-center gap-2 mb-2"><Flame className="text-orange-500" /> <span className="font-bold">Vỏ Chuối</span></div>
